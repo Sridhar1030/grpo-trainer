@@ -1,0 +1,5 @@
+.cursor/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.obsidian/
