@@ -5,6 +5,6 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .obsidian/
-runs/*.log
+
 *.egg-info/
 docs/Grpo+trainer/
