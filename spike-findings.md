@@ -5,7 +5,7 @@
 > **Cluster:** OpenShift (RHOAI) with Kubeflow Trainer v2  
 > **Namespace:** `grpoxtrainer`  
 > **Runtime:** `torch-distributed` ClusterTrainingRuntime  
-> **Notebook:** [`spike-grpo-kft-v2.ipynb`](spike-grpo-kft-v2.ipynb)
+> **Notebook:** `[spike-grpo-kft-v2.ipynb](spike-grpo-kft-v2.ipynb)`
 
 ---
 
@@ -21,28 +21,32 @@ GSM8K data → KFT v2 CustomTrainer → TRL GRPOTrainer → GRPO loop executes
 
 ## Setup
 
-| Component | Value |
-|-----------|-------|
-| Model | `Qwen/Qwen2.5-0.5B-Instruct` (494M params) |
-| Dataset | GSM8K (16 samples, rule-based reward) |
-| Framework | TRL `GRPOTrainer` + HF Transformers |
-| Orchestrator | Kubeflow Trainer v2 (`CustomTrainer` → `torch-distributed` runtime) |
-| Submission | `TrainerClient.train()` from workbench notebook |
-| Reward | Rule-based: extract `#### N`, compare to ground truth (+1.0 correct, +0.1 partial, 0.0 none) |
-| GRPO Config | G=2 generations, batch=2, max_completion_length=32, lr=5e-6, beta=0.0 |
+
+| Component    | Value                                                                                        |
+| ------------ | -------------------------------------------------------------------------------------------- |
+| Model        | `Qwen/Qwen2.5-0.5B-Instruct` (494M params)                                                   |
+| Dataset      | GSM8K (16 samples, rule-based reward)                                                        |
+| Framework    | TRL `GRPOTrainer` + HF Transformers                                                          |
+| Orchestrator | Kubeflow Trainer v2 (`CustomTrainer` → `torch-distributed` runtime)                          |
+| Submission   | `TrainerClient.train()` from workbench notebook                                              |
+| Reward       | Rule-based: extract `#### N`, compare to ground truth (+1.0 correct, +0.1 partial, 0.0 none) |
+| GRPO Config  | G=2 generations, batch=2, max_completion_length=32, lr=5e-6, beta=0.0                        |
+
 
 ## Compatibility Checklist
 
-| # | Check | Result | Evidence |
-|---|-------|--------|----------|
-| 1 | `CustomTrainer` accepts TRL training function | **PASS** | cloudpickle serialized `grpo_train()` and all closures |
-| 2 | `packages_to_install` installs TRL + deps in pod | **PASS** | `trl`, `datasets`, `accelerate` installed at pod startup |
-| 3 | `torch-distributed` runtime injects correct env vars | **PASS** | `RANK=0`, `WORLD_SIZE=4`, `MASTER_ADDR`, `MASTER_PORT` all set |
-| 4 | Distributed backend initializes | **PASS** | Gloo backend, all ranks connected (`Rank N is connected to 3 peer ranks`) |
-| 5 | TRL GRPOTrainer initializes inside KFT pod | **PASS** | Config loaded, model (494M params) and tokenizer ready |
-| 6 | GRPO training loop starts | **PASS** | Progress bar appeared (`0/50`), generation phase entered |
-| 7 | Model downloads from HuggingFace | **PASS** | `Qwen/Qwen2.5-0.5B-Instruct` pulled inside pod |
-| 8 | Dataset downloads from HuggingFace | **PASS** | GSM8K loaded and mapped |
+
+| #   | Check                                                | Result   | Evidence                                                                  |
+| --- | ---------------------------------------------------- | -------- | ------------------------------------------------------------------------- |
+| 1   | `CustomTrainer` accepts TRL training function        | **PASS** | cloudpickle serialized `grpo_train()` and all closures                    |
+| 2   | `packages_to_install` installs TRL + deps in pod     | **PASS** | `trl`, `datasets`, `accelerate` installed at pod startup                  |
+| 3   | `torch-distributed` runtime injects correct env vars | **PASS** | `RANK`, `WORLD_SIZE`, `MASTER_ADDR`, `MASTER_PORT` set per process (`WORLD_SIZE` matches the job’s GPU/worker layout) |
+| 4   | Distributed backend initializes                      | **PASS** | Gloo backend; each rank connects to `WORLD_SIZE - 1` peers |
+| 5   | TRL GRPOTrainer initializes inside KFT pod           | **PASS** | Config loaded, model (494M params) and tokenizer ready                    |
+| 6   | GRPO training loop starts                            | **PASS** | Progress bar appeared (`0/50`), generation phase entered                  |
+| 7   | Model downloads from HuggingFace                     | **PASS** | `Qwen/Qwen2.5-0.5B-Instruct` pulled inside pod                            |
+| 8   | Dataset downloads from HuggingFace                   | **PASS** | GSM8K loaded and mapped                                                   |
+
 
 **Verdict: TRL GRPO is fully compatible with Kubeflow Trainer v2.**
 
@@ -52,7 +56,11 @@ GSM8K data → KFT v2 CustomTrainer → TRL GRPOTrainer → GRPO loop executes
 
 The `torch-distributed` ClusterTrainingRuntime hardcodes the CUDA training image (`odh-training-cuda128-torch29-py312-rhel9`) regardless of whether GPUs are requested. First pull took ~10 minutes. On a node with limited ephemeral storage (< 19 GB threshold), the pod was **evicted** immediately after the image pulled.
 
-**Mitigation:** Use GPU-equipped nodes for real workloads (image will already be cached). For development clusters, pre-pull the image via a DaemonSet.
+**Mitigation:** Use GPU-equipped nodes for real workloads (image will already be cached). For development clusters, pre-pull the image via a DaemonSet. Keep **one** 2×GPU `TrainJob` at a time unless the pool has four free GPUs; **96 Gi memory requests** for a 0.5B spike can prevent two pods from fitting the same node—this notebook now defaults to **8 CPU / 48 Gi / 2 GPU** to schedule more reliably.
+
+### L1b: Multi-GPU DDP device placement
+
+Each rank should call `torch.cuda.set_device(LOCAL_RANK)` and place the model on `cuda:{LOCAL_RANK}`. Otherwise processes can all pile onto GPU 0 and DDP breaks or OOMs. The spike notebook does this before `from_pretrained` / training.
 
 ### L2: `nproc_per_node=auto` spawns 1 process per CPU
 
@@ -70,7 +78,7 @@ The `CustomTrainer` API does not expose a way to set `nproc_per_node` directly. 
 
 The workbench service account (`system:serviceaccount:grpoxtrainer:grpoxtrainerwb1`) does not have permissions to create/list Trainer resources by default. `TrainerClient` fails with `403 Forbidden`.
 
-**Mitigation:** Apply the provided [`rbac-trainer-access.yaml`](rbac-trainer-access.yaml) which creates a `ClusterRole` and `ClusterRoleBinding` with the necessary permissions.
+**Mitigation:** Apply the provided `[rbac-trainer-access.yaml](rbac-trainer-access.yaml)` which creates a `ClusterRole` and `ClusterRoleBinding` with the necessary permissions.
 
 ### L5: Minor deprecation warnings
 
@@ -99,8 +107,11 @@ The workbench service account (`system:serviceaccount:grpoxtrainer:grpoxtrainerw
 
 ## Files
 
-| File | Purpose |
-|------|---------|
-| [`spike-grpo-kft-v2.ipynb`](spike-grpo-kft-v2.ipynb) | Spike notebook — run in OpenShift workbench |
-| [`rbac-trainer-access.yaml`](rbac-trainer-access.yaml) | RBAC setup for workbench → Trainer access |
-| [`docs/sprint.md`](docs/sprint.md) | Phase 1 + Phase 2 sprint plan |
+
+| File                                                   | Purpose                                     |
+| ------------------------------------------------------ | ------------------------------------------- |
+| `[spike-grpo-kft-v2.ipynb](spike-grpo-kft-v2.ipynb)`   | Spike notebook — run in OpenShift workbench |
+| `[rbac-trainer-access.yaml](rbac-trainer-access.yaml)` | RBAC setup for workbench → Trainer access   |
+| `[docs/sprint.md](docs/sprint.md)`                     | Phase 1 + Phase 2 sprint plan               |
+
+
