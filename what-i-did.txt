@@ -1,0 +1,80 @@
+vLLM Weight Sync — What Was Done (May 18, 2026)
+=================================================
+
+PROBLEM
+-------
+The notebook (grpo-vllm-rollout-example.ipynb) tried to do NCCL weight sync
+between the workbench pod (trainer) and the vLLM pod (inference). This
+deadlocked every time.
+
+Root cause: vLLM's HTTP+NCCL weight transfer path is synchronous inside the
+API server. When the trainer POSTs to /init_weight_transfer_engine, vLLM's
+single worker thread blocks waiting for the NCCL group join. But the trainer
+is also blocking waiting for its side of the join. When they're in separate
+pods, neither can proceed — classic deadlock.
+
+The official vLLM example (rlhf_http_nccl.py) assumes trainer and vLLM are
+on the SAME machine, using localhost, on different GPUs (vLLM on GPU 0,
+trainer on GPU 1).
+
+Reference: https://docs.vllm.ai/en/v0.21.0/examples/rl/rlhf_http_nccl/
+
+
+FIX
+---
+Matched the official example exactly:
+
+1. Gave the vLLM deployment 2 GPUs instead of 1
+2. vLLM serves on GPU 0
+3. Trainer script runs INSIDE the vLLM pod on GPU 1
+4. All communication happens over localhost — no cross-pod NCCL
+
+The notebook now:
+- Deploys vLLM with --load-format dummy (random weights = gibberish output)
+- Writes a trainer script, copies it into the vLLM pod via oc cp
+- Runs it via oc exec
+- Trainer loads real Qwen2.5-0.5B weights on GPU 1
+- NCCL transfers them to vLLM on GPU 0
+- vLLM goes from gibberish to correct answers
+
+
+CHANGES MADE
+------------
+1. notebooks/grpo-vllm-rollout-example.ipynb
+   - Cell 0: Updated title/description to explain 2-GPU localhost pattern
+   - Cell 5: Added VLLM_GPU_COUNT=2, VLLM_GPU_MEM_UTIL=0.4, auto-set
+     load-format to "dummy" when weight sync is enabled
+   - Cell 7: Deployment now requests 2 GPUs, uses 0.4 mem-util, adds
+     VLLM_ALLOW_INSECURE_SERIALIZATION=1 env var
+   - Cell 14: Updated header to explain the localhost pattern
+   - Cell 15: Complete rewrite — instead of doing NCCL from the workbench,
+     it writes a trainer script, oc cp's it into the vLLM pod, and oc exec's
+     it there
+
+2. scripts/weight_sync_test.py
+   - Standalone trainer script for weight sync (also used by the notebook)
+
+3. Cluster RBAC
+   - Added pods/exec permission to the vllm-rollout-manager Role so the
+     workbench SA can oc cp / oc exec into the vLLM pod
+
+
+PROOF IT WORKS
+--------------
+Notebook output (Cell 15):
+
+  BEFORE weight sync:
+    Answer: 張貼 MIC וח_traits mirac ORIGINALabel...  (gibberish)
+
+  NCCL group established
+  vLLM paused
+  Broadcasting weights via NCCL...
+  Weights transferred
+  vLLM resumed with fresh weights
+
+  AFTER weight sync:
+    Answer: 4
+
+  === WEIGHT SYNC COMPLETE ===
+
+Total time: ~2 minutes end to end.
