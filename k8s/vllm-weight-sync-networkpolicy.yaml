@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grpoxtrainerwb1-vllm-weight-sync
+  namespace: grpoxtrainer
+spec:
+  podSelector:
+    matchLabels:
+      notebook-name: grpoxtrainerwb1
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grpo-vllm-rollout
+      ports:
+        - protocol: TCP
+          port: 29501
