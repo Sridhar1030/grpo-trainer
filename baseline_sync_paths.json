@@ -1,0 +1,242 @@
+{
+  "namespace": "grpoxtrainer",
+  "vllm_pod": "grpo-vllm-rollout-7cf46f7665-sg9cw",
+  "checkpoint_sizes": {
+    "pvc_human": "958M\t/mnt/checkpoint/grpo-trained",
+    "pvc_bytes": 1003989686,
+    "localtmp_human": "958M\t/tmp/grpo-local-grpo-trained",
+    "localtmp_bytes": 1003989686
+  },
+  "runs": [
+    {
+      "localtmp": {
+        "pre_eval": {
+          "label": "BEFORE_TRAINING",
+          "n": 5,
+          "correct": 0,
+          "accuracy": 0.0,
+          "avg_latency_s": 2.093,
+          "results": [
+            {
+              "i": 0,
+              "ref": "18",
+              "pred": "3",
+              "correct": false
+            },
+            {
+              "i": 1,
+              "ref": "3",
+              "pred": "10",
+              "correct": false
+            },
+            {
+              "i": 2,
+              "ref": "70000",
+              "pred": "3",
+              "correct": false
+            },
+            {
+              "i": 3,
+              "ref": "540",
+              "pred": "180",
+              "correct": false
+            },
+            {
+              "i": 4,
+              "ref": "20",
+              "pred": "2",
+              "correct": false
+            }
+          ]
+        },
+        "post_eval": {
+          "label": "AFTER_TRAINING",
+          "n": 5,
+          "correct": 0,
+          "accuracy": 0.0,
+          "avg_latency_s": 0.2385,
+          "results": [
+            {
+              "i": 0,
+              "question": "Janet's ducks lay 16 eggs per day. She eats three for breakfast every morning an",
+              "ref": "18",
+              "pred": "320",
+              "correct": false,
+              "latency_s": 0.661,
+              "snippet": "#### 320"
+            },
+            {
+              "i": 1,
+              "question": "A robe takes 2 bolts of blue fiber and half that much white fiber. How many bolt",
+              "ref": "3",
+              "pred": "4",
+              "correct": false,
+              "latency_s": 0.097,
+              "snippet": "#### 4"
+            },
+            {
+              "i": 2,
+              "question": "Josh decides to try flipping a house. He buys a house for $80,000 and puts in $5",
+              "ref": "70000",
+              "pred": "35000",
+              "correct": false,
+              "latency_s": 0.169,
+              "snippet": "#### 35000"
+            },
+            {
+              "i": 3,
+              "question": "James decides to run 3 sprints 3 times a week. He runs 60 meters each sprint. Ho",
+              "ref": "540",
+              "pred": "1800",
+              "correct": false,
+              "latency_s": 0.149,
+              "snippet": "#### 1800"
+            },
+            {
+              "i": 4,
+              "question": "Every day, Wendi feeds each of her chickens three cups of mixed chicken feed, co",
+              "ref": "20",
+              "pred": "35",
+              "correct": false,
+              "latency_s": 0.115,
+              "snippet": "#### 35"
+            }
+          ]
+        },
+        "pre_metrics": {
+          "vllm:prompt_tokens_total": 0.0,
+          "vllm:generation_tokens_total": 0.0
+        },
+        "post_metrics": {
+          "vllm:num_requests_running": 0.0,
+          "vllm:num_requests_waiting": 0.0,
+          "vllm:prompt_tokens_total": 421.0,
+          "vllm:generation_tokens_total": 501.0,
+          "vllm:time_to_first_token_seconds_count": 5.0,
+          "vllm:time_to_first_token_seconds_sum": 1.0080323219299316,
+          "vllm:e2e_request_latency_seconds_count": 5.0,
+          "vllm:e2e_request_latency_seconds_sum": 9.917895555496216
+        },
+        "train_elapsed_s": 0.0,
+        "sync_elapsed_s": 0.48,
+        "reward_mean_first": 0.0,
+        "reward_mean_last": 0.0,
+        "train_world_size": 4
+      },
+      "pvc": {
+        "pre_eval": {
+          "label": "BEFORE_TRAINING",
+          "n": 5,
+          "correct": 0,
+          "accuracy": 0.0,
+          "avg_latency_s": 0.239,
+          "results": [
+            {
+              "i": 0,
+              "ref": "18",
+              "pred": "320",
+              "correct": false
+            },
+            {
+              "i": 1,
+              "ref": "3",
+              "pred": "4",
+              "correct": false
+            },
+            {
+              "i": 2,
+              "ref": "70000",
+              "pred": "25000",
+              "correct": false
+            },
+            {
+              "i": 3,
+              "ref": "540",
+              "pred": "1800",
+              "correct": false
+            },
+            {
+              "i": 4,
+              "ref": "20",
+              "pred": "65",
+              "correct": false
+            }
+          ]
+        },
+        "post_eval": {
+          "label": "AFTER_TRAINING",
+          "n": 5,
+          "correct": 0,
+          "accuracy": 0.0,
+          "avg_latency_s": 0.2367,
+          "results": [
+            {
+              "i": 0,
+              "question": "Janet's ducks lay 16 eggs per day. She eats three for breakfast every morning an",
+              "ref": "18",
+              "pred": "80",
+              "correct": false,
+              "latency_s": 0.649,
+              "snippet": "#### 80"
+            },
+            {
+              "i": 1,
+              "question": "A robe takes 2 bolts of blue fiber and half that much white fiber. How many bolt",
+              "ref": "3",
+              "pred": "4",
+              "correct": false,
+              "latency_s": 0.098,
+              "snippet": "#### 4"
+            },
+            {
+              "i": 2,
+              "question": "Josh decides to try flipping a house. He buys a house for $80,000 and puts in $5",
+              "ref": "70000",
+              "pred": "35000",
+              "correct": false,
+              "latency_s": 0.169,
+              "snippet": "#### 35000"
+            },
+            {
+              "i": 3,
+              "question": "James decides to run 3 sprints 3 times a week. He runs 60 meters each sprint. Ho",
+              "ref": "540",
+              "pred": "1800",
+              "correct": false,
+              "latency_s": 0.151,
+              "snippet": "#### 1800"
+            },
+            {
+              "i": 4,
+              "question": "Every day, Wendi feeds each of her chickens three cups of mixed chicken feed, co",
+              "ref": "20",
+              "pred": "80",
+              "correct": false,
+              "latency_s": 0.117,
+              "snippet": "#### 80"
+            }
+          ]
+        },
+        "pre_metrics": {
+          "vllm:prompt_tokens_total": 842.0,
+          "vllm:generation_tokens_total": 531.0
+        },
+        "post_metrics": {
+          "vllm:num_requests_running": 0.0,
+          "vllm:num_requests_waiting": 0.0,
+          "vllm:prompt_tokens_total": 1263.0,
+          "vllm:generation_tokens_total": 561.0,
+          "vllm:time_to_first_token_seconds_count": 15.0,
+          "vllm:time_to_first_token_seconds_sum": 1.4260060787200928,
+          "vllm:e2e_request_latency_seconds_count": 15.0,
+          "vllm:e2e_request_latency_seconds_sum": 11.229857444763184
+        },
+        "train_elapsed_s": 0.0,
+        "sync_elapsed_s": 0.45,
+        "reward_mean_first": 0.0,
+        "reward_mean_last": 0.0,
+        "train_world_size": 4
+      }
+    }
+  ]
+}

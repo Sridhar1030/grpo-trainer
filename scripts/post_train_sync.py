@@ -65,6 +65,13 @@ def wait_checkpoint_ready(ns: str, vllm_pod: str, timeout_s: int) -> str:
     raise TimeoutError(f"Checkpoint not ready at {CHECKPOINT} after {timeout_s}s")
 
 
+def checkpoint_sizes(ns: str, vllm_pod: str) -> tuple[str, int]:
+    human = oc(ns, "exec", vllm_pod, "--", "du", "-sh", CHECKPOINT).stdout.strip()
+    raw = oc(ns, "exec", vllm_pod, "--", "du", "-sb", CHECKPOINT).stdout.strip().split()
+    bytes_used = int(raw[0]) if raw else 0
+    return human, bytes_used
+
+
 def rank0_pod(ns: str, job_name: str) -> str:
     r = oc(ns, "get", "pods", "-o", "name", check=False)
     pods = [
@@ -176,6 +183,7 @@ def main() -> None:
     parser.add_argument("--vllm-label", default=DEFAULT_VLLM_LABEL)
     parser.add_argument("--train-timeout", type=int, default=3600)
     parser.add_argument("--checkpoint-timeout", type=int, default=600)
+    parser.add_argument("--json", action="store_true", help="Print machine-readable result JSON")
     args = parser.parse_args()
 
     vllm_pod = discover_vllm_pod(args.namespace, args.vllm_label)
@@ -189,8 +197,9 @@ def main() -> None:
     print(json.dumps(summary, indent=2))
 
     print("Waiting for checkpoint on PVC...")
-    size = wait_checkpoint_ready(args.namespace, vllm_pod, args.checkpoint_timeout)
-    print(f"Checkpoint ready: {size}")
+    _ = wait_checkpoint_ready(args.namespace, vllm_pod, args.checkpoint_timeout)
+    checkpoint_human, checkpoint_bytes = checkpoint_sizes(args.namespace, vllm_pod)
+    print(f"Checkpoint ready: {checkpoint_human}")
 
     print("Preparing vLLM pod for sync...")
     ensure_vllm_scripts(args.namespace, vllm_pod)
@@ -210,6 +219,19 @@ def main() -> None:
     print(f"  After accuracy:  {results['post_eval']['accuracy']:.1%}")
     print(f"  TrainJob:        {args.job_name}")
     print(f"  Checkpoint:      {CHECKPOINT}")
+
+    if args.json:
+        payload = {
+            "mode": "pvc",
+            "trainjob": args.job_name,
+            "vllm_pod": vllm_pod,
+            "checkpoint_path": CHECKPOINT,
+            "checkpoint_size_human": checkpoint_human,
+            "checkpoint_size_bytes": checkpoint_bytes,
+            "train_summary": summary,
+            "sync_results": results,
+        }
+        print(json.dumps(payload))
 
 
 if __name__ == "__main__":
